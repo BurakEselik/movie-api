@@ -1,15 +1,10 @@
-if __name__ == "__main__":
-    import os
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'moviepro.settings')
-
-    import django
-    django.setup()
-
 import requests
 from bs4 import BeautifulSoup
 from decimal import Decimal
+from celery import shared_task
 
-def get_imdb_rating(name: str, **kwargs):
+@shared_task()
+def get_imdb_rating(name: str, instance=None, **kwargs):
     """
     ...
 
@@ -46,4 +41,8 @@ def get_imdb_rating(name: str, **kwargs):
         rating = get_rating(fm_href)
         return Decimal(rating)
 
-    return main()
+    if instance is not None:
+        from .models import Movie
+        instance = Movie.objects.get(pk=instance)
+        instance.imdb = main()
+        instance.save()

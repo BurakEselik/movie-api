@@ -1,10 +1,8 @@
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from decimal import Decimal
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from scripts.rating import get_imdb_rating
-from threading import Thread
+from .tasks import get_imdb_rating
+
 
 class Movie(models.Model):
     name = models.CharField(max_length=214)
@@ -23,6 +21,6 @@ class Movie(models.Model):
         return f"{self.name} - {self.release_date}"
 
     def save(self, *args, **kwargs) -> None:
-        if self.imdb is None:
-            self.imdb = get_imdb_rating(self.name)
         super().save(*args, **kwargs)
+        if self.imdb is None: # This is obstacle of recursive.
+            get_imdb_rating.delay(self.name, instance=self.id)
